@@ -2,12 +2,16 @@
 
 namespace App\Application\Controller;
 
-use OpenApi\Attributes\Put;
+use App\Core\Entity\Contact;
+use App\Exceptions\CustomException;
+use App\Model\Email\EmailBody;
+use App\Model\Response200;
+use App\Model\Response400;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\KernelInterface;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 use Symfony\Component\Mailer\Mailer;
 use Symfony\Component\Mailer\Transport;
@@ -16,49 +20,59 @@ use Symfony\Component\Mime\Email;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Serializer\SerializerInterface;
 
-class ContactMe extends Controller
+class ContactMe extends AbstractController
 {
-    #[Route('/api/v1/contact',
-        name: 'contact',
-        methods: ['POST', 'PUT'])
-    ]
-
-    public function sendEmail(Request $request)
+    #[Route('/api/v1/contact', name: 'contact', methods: ['PUT'])]
+    public function sendEmail(EntityManagerInterface $entityManager, Request $request, SerializerInterface $serializer): JsonResponse
     {
-
-        $consumes = ['application/json'];
-        $inputFormat = $request->headers->has('Content-Type') ? $request->headers->get('Content-Type') : $consumes[0];
-        if (!in_array($inputFormat, $consumes)) {
-            return new Response('', 415);
-        }
-
-        $produces = ['application/json'];
-
-        $clientAccepts = $request->headers->has('Accept') ? $request->headers->get('Accept') : '*/*';
-        $responseFormat = $this->getOutputFormat($clientAccepts, $produces);
-        if ($responseFormat === null) {
-            return new Response('', 406);
-        }
-
-        $contactData = json_decode($request->getContent(), true);
-
-        $email = (new Email())
-            ->from(new Address($contactData['email'], $contactData['name']))
-            ->to('luigicarmone16@gmail.com')
-            ->subject($contactData['company'])
-            ->text($contactData['note']);
-
-        $dsn = 'smtp://lwg-mailhog:1025';
-        $transport = Transport::fromDsn($dsn);
-        $mailer = new Mailer($transport);
+        $entityManager->beginTransaction();
 
         try {
+            $contact = new Contact();
+
+            /** @var EmailBody $oEmailBody */
+            $oEmailBody = $serializer->deserialize($request->getContent(), EmailBody::class, "json");
+
+            $email = (new Email())
+                ->from(new Address($oEmailBody->getEmail(), $oEmailBody->getName()))
+                ->to('luigicarmone16@gmail.com')
+                ->subject($oEmailBody->getCompany())
+                ->text($oEmailBody->getNote());
+
+            $contact->setName($oEmailBody->getName());
+            $contact->setEmail($oEmailBody->getEmail());
+            $contact->setCompany($oEmailBody->getCompany());
+            $contact->setNote($oEmailBody->getNote());
+
+            $entityManager->persist($contact);
+            $entityManager->flush();
+
+            $dsn = $_ENV['MAILER_DSN'];
+            $transport = Transport::fromDsn($dsn);
+            $mailer = new Mailer($transport);
             $mailer->send($email);
 
-            return new Response('OK', 200);
+            $entityManager->commit();
 
-        } catch (TransportExceptionInterface $e) {
-            return new Response('KO' . $e->getMessage(), 500);
+            $oResponse = new Response200();
+            $oResponse->setResponseCode("OK");
+            $oResponse->setMessage("[LWG/EMAIL] Operazione avvenuta con successo");
+            $oResponse->setData($mailer);
+            return $this->json($contact);
+
+        } catch (CustomException $e) {
+            $entityManager->rollback();
+            $oResponse400 = new Response400();
+            $oResponse400->setError($e->getErrorMessage());
+            $oResponse400->setMessage($e->getMessage());
+            return $this->json($oResponse400, 400);
+
+        } catch (\Exception $e) {
+            $entityManager->rollback();
+            $oResponse400 = new Response400();
+            $oResponse400->setError(Response400::$DEFAULT_GENERIC_ERROR);
+            $oResponse400->setMessage("[LWG/EMAIL] Errore durante l'invio dell'email, riprovare più tardi: " . $e->getMessage());
+            return $this->json($oResponse400, 400);
         }
     }
 }

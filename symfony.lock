@@ -37,19 +37,6 @@
             "src/Core/Repository/.gitignore"
         ]
     },
-    "doctrine/doctrine-migrations-bundle": {
-        "version": "3.2",
-        "recipe": {
-            "repo": "github.com/symfony/recipes",
-            "branch": "main",
-            "version": "3.1",
-            "ref": "ee609429c9ee23e22d6fa5728211768f51ed2818"
-        },
-        "files": [
-            "config/packages/doctrine_migrations.yaml",
-            "migrations/.gitignore"
-        ]
-    },
     "doctrine/event-manager": {
         "version": "1.1.0"
     },
@@ -61,9 +48,6 @@
     },
     "doctrine/lexer": {
         "version": "1.2.0"
-    },
-    "doctrine/migrations": {
-        "version": "2.2.0"
     },
     "doctrine/orm": {
         "version": "v2.7.0"

@@ -24,12 +24,13 @@ RUN apt-get update && apt-get install -y \
     libxslt1-dev \
     libxml2-dev \
     acl \
+    libpq-dev \
     && echo 'alias sf="php bin/console"' >> ~/.bashrc
 
 RUN docker-php-ext-configure gd --with-jpeg --with-freetype
 
 RUN docker-php-ext-install \
-    pdo pdo_mysql zip xsl gd intl opcache exif mbstring soap
+    pdo pdo_mysql pdo_pgsql zip xsl gd intl opcache exif mbstring soap
 
 # Set timezone
 RUN ln -snf /usr/share/zoneinfo/${TIMEZONE} /etc/localtime && echo ${TIMEZONE} > /etc/timezone \

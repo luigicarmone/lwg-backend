@@ -4,6 +4,11 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    database_host: 172.25.0.2
+    database_port: 5432
+    database_name: lwg
+    database_user: luigi
+    database_password: passwordPostgres
 
 services:
     # default configuration for services in *this* file
